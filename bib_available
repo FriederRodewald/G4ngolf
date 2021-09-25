@@ -1,0 +1,104 @@
+from splinter import Browser
+import time
+import re
+
+def get_options_area():
+    area = browser.find_by_name("area")
+    options_area = area.find_by_tag("option")[1:]
+    return options_area
+
+def get_bib_spec_area():
+    bib_spec = browser.find_by_name("servizio")
+    options_bib_spec = bib_spec.find_by_tag("option")[1:]
+    return options_bib_spec
+    
+
+executable_path = {'executable_path':r'C:\Users\Gangolf\.wdm\drivers\chromedriver\win32\93.0.4577.63\chromedriver.exe'}
+browser = Browser('chrome', **executable_path, headless = True)
+
+url = "https://orari-be.divsi.unimi.it/PortaleEasyPlanning/biblio/index.php?include=form"
+browser.visit(url)
+
+options_area = get_options_area()
+
+for i in range(len(options_area)):        
+    options_area = get_options_area()
+    options_area[i].click()
+    time.sleep(0.01)
+
+    options_bib_spec = get_bib_spec_area()
+
+    for u in range(len(options_bib_spec)):
+        
+        options_area = get_options_area()
+
+        options_area[i - 1].click() #make options appear again
+        time.sleep(0.01)
+        options_area[i].click()
+        time.sleep(0.01)
+
+        options_bib_spec = get_bib_spec_area()
+
+        options_bib_spec[u].click()
+        time.sleep(0.01)
+
+        date = browser.find_by_name("data_inizio")
+        date.click()
+
+        try:
+            date_active = browser.find_by_css('td[class="active day"]')
+            date_active.click()
+            time.sleep(0.1)
+        except:
+            continue
+
+        browser.fill('codice_fiscale', 'SVYNNV48C15I448F')
+        browser.fill('cognome_nome', 'Frederico Automo')
+        browser.fill('email', 'frederico.automo@gmail.com')
+        time.sleep(0.01)     
+
+        if i == 4: #mandatory fields
+            browser.fill('1593698777', 'placeholder')
+        elif i == 22:
+            browser.fill('phone', '0123456789')
+        elif u == 5:
+            browser.fill('1599225209', 'placeholder')
+        elif i == 27 and u == 1:
+            browser.fill('1599677680', 'placeholder')
+            browser.fill('1599677704', 'placeholder')
+
+        browser.find_by_id("verify").click()
+
+        time.sleep(0.01)
+        html_doc = browser.html
+        browser.back()      
+        time.sleep(0.01)
+
+        #read the slots
+        slot_pattern = '(?:Monday|Tuesday|Wednesday|Thursday|Friday)\s\d{2}|\d{2}(?=:\d{2})'
+        slots = re.findall(slot_pattern, html_doc)
+
+        bib_pattern = '(?<=titolo-pagina\'\)\.text\(\").{1,100}(?= -)'
+        bib = "".join(re.findall(bib_pattern, html_doc, re.DOTALL))
+
+        if not bib:
+            continue
+
+        slot = {}
+
+        for x in slots:
+            try:
+                int(x)
+                day = list(slot)[-1]
+                if slot[day]:
+                    slot[day].append(x)
+                else:
+                    slot[day] = [x]
+            except:
+                slot[x] = None
+
+
+        timeslots = {}
+        timeslots[bib] = slot
+
+        print(timeslots)
